@@ -1,0 +1,234 @@
+###############################################################################
+# oc process -f ./backup.yaml --param-file=./backup.params.env | oc apply -f -
+###############################################################################
+kind: Template
+apiVersion: v1
+objects:
+- kind: PersistentVolumeClaim
+  apiVersion: v1
+  metadata:
+    creationTimestamp: null
+    labels:
+      io.kompose.service: ${PVC_NAME}
+    name: ${PVC_NAME}
+  spec:
+    storageClassName: ${BACKUP_VOLUME_STORAGE_CLASS_NAME}
+    accessModes:
+    - ReadWriteMany
+    resources:
+      requests:
+        storage: 1Gi
+
+######################################################################
+# Backup pod 
+######################################################################
+
+- kind: ImageStream
+  apiVersion: v1
+  metadata:
+    name: ${APP_NAME}
+    labels:
+      app: ${APP_NAME}
+      app.kubernetes.io/part-of: ${APP_NAME}
+
+- kind: BuildConfig
+  apiVersion: v1
+  metadata:
+    annotations:
+      app.openshift.io/vcs-uri: ${GITHUB_REPOSITORY_URI}
+      template.alpha.openshift.io/wait-for-ready: "true"
+    labels:
+      app: ${APP_NAME}
+      app.kubernetes.io/part-of: ${APP_NAME}
+    name: ${APP_NAME}
+  spec:
+    output:
+      to:
+        kind: ImageStreamTag
+        name: ${APP_NAME}:latest
+    source:
+      # contextDir: ${CONTEXT_SOURCE_DIR}
+      git:
+        uri: ${GITHUB_REPOSITORY_URI}
+        ref: ${GIT_REF}
+      type: Git
+    strategy:
+      dockerStrategy:
+        dockerfilePath: Dockerfile
+      type: Docker
+    triggers:
+      - type: ConfigChange
+
+- kind: DeploymentConfig
+  apiVersion: v1
+  metadata:
+    name: ${APP_NAME}
+    annotations:
+      template.alpha.openshift.io/wait-for-ready: 'true'
+    labels:
+      app: ${APP_NAME}
+  spec:
+    strategy:
+      type: Recreate
+    replicas: 1
+    selector:
+      name: ${APP_NAME}
+    template:
+      metadata:
+        labels:
+          name: ${APP_NAME}
+      spec:
+        containers:
+        - image: redis:latest
+          imagePullPolicy: ""
+          name: ${APP_NAME}
+          resources: {}
+          volumeMounts:
+          - mountPath: /var/lib/postgres/backup
+            name: ${PVC_NAME}
+        restartPolicy: Always
+        serviceAccountName: ""
+        volumes:
+        - name: ${PVC_NAME}
+          persistentVolumeClaim:
+            claimName: ${PVC_NAME}
+- kind: Service
+  apiVersion: v1
+  metadata:
+    name: ${APP_NAME}
+    labels:
+      name: ${APP_NAME}
+  spec:
+    ports:
+    - name: "6379"
+      port: 6379
+      targetPort: 6379
+    selector:
+      name: ${APP_NAME}
+  status:
+    loadBalancer: {}
+
+######################################################################
+# Secrets
+######################################################################
+- kind: Secret
+  apiVersion: v1
+  metadata:
+    name: ${APP_NAME}
+    labels:
+      name: ${APP_NAME}
+      role: controller
+  stringData:
+    postgres-user:          ${POSTGRES_USER}
+    postgres-password:      ${POSTGRES_PASSWORD}
+    s3-access-key-id:       ${S3_ACCESS_KEY_ID} 
+    s3-secret-access-key:   ${S3_SECRET_ACCESS_KEY} 
+    s3-bucket:              ${S3_BUCKET}           
+    s3-path:                ${S3_PATH}
+    passphrase:             ${PASSPHRASE}
+  type: Opaque
+
+
+######################################################################
+# Parameters
+######################################################################
+parameters:
+# Params console openshift
+- name: APP_NAME
+  displayName: Application name
+  description: Used to group components together in the OpenShift console.
+  required: true
+- name: APP_GROUP
+  description: Used to group components together in the OpenShift console.
+  required: true
+
+# Params database
+- name: POSTGRES_DATABASE
+  displayName: PostgreSQL Database and Secrets Name
+  description: The name of the PostgreSQL Database and Secrets.
+  required: true
+  value: 'db'
+- name: POSTGRES_USER
+  description: PostgreSQL user.
+  required: true
+- name: POSTGRES_PASSWORD
+  description: PostgreSQL password.
+  required: true
+- name: POSTGRES_HOST
+  description: Hostname of the PostgreSQL server (aka service name).
+  required: true
+- name: POSTGRES_PORT
+  description: Port number of the PostgreSQL server (aka service port number).
+  required: true
+  value: '5432'
+- name: PGDUMP_EXTRA_OPTS
+  description: Parameters for special requests to Postgres dump tool.
+  required: false
+
+# Params PVC
+- name: PVC_NAME
+  description: Nom du persistent volume claim
+  required: true
+  value: backup-port-e
+- name: BACKUP_VOLUME_STORAGE_CLASS_NAME
+  description: Storage class name du backup
+  required: true
+  value: efs-1000
+
+# Params build 
+- name: GITHUB_REPOSITORY_URI
+  displayName: GitHub repository URI
+  description: URI of the GitHub repository.
+  required: true
+  value: https://github.com/CQEN-QDCE/postgres-backup-s3.git
+- name: CONTEXT_SOURCE_DIR
+  displayName: Context source dir
+  description: Répertoire ou sont les elements pour le build.
+  required: false
+  value: .
+- name: GIT_REF
+  displayName: Git reference
+  description: Dénomination de la branche que sera utilisée pour le build.
+  required: true
+  value: features/backup
+
+# Params S3
+- name: S3_ACCESS_KEY_ID
+  description: Accesskey identifier to allow access to S3 bucket.
+  required: true
+  value: ''
+- name: S3_SECRET_ACCESS_KEY
+  description: Accesskey password to allow access to S3 bucket.
+  required: true
+  value: ''
+- name: S3_BUCKET
+  description: Identification du bucket S3.
+  required: true
+  value: ""
+- name: S3_REGION
+  description: Région du compte AWS
+  required: true
+  value: ca-central-1
+- name: S3_PATH
+  description: Le path au répertoire de backup 
+  required: true
+  value: 'backup'
+- name: S3_ENDPOINT
+  description: Endpoint pour exposer le bucket
+  required: true
+  value: ''
+- name: S3_S3V4
+  description: S3V4 ? 
+  required: true
+  value: "no"
+
+# Params varia 
+- name: SCHEDULE
+  description: Expression Cron-like de la schedule.  
+  required: true
+- name: PASSPHRASE
+  description: Mot de passe pour chiffrer le backup. 
+  required: true
+- name: BACKUP_KEEP_DAYS
+  description: La quantité de jours que le backup sera gardé. 
+  required: true

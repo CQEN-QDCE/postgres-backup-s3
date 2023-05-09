@@ -1,0 +1,49 @@
+#===============================================================================
+# Params pour le template postgres-backup-s3.yaml
+# Vérifiez dans la section PARAMETERS du fichier yaml pour les valeurs à 
+# attribuer aux variables. 
+# 
+# Remplacer les valeurs de secret des variables suivantes: 
+#
+# POSTGRES_USER, POSTGRES_PASSWORD, S3_ACCESS_KEY_ID, S3_SECRET_ACCESS_KEY, 
+# S3_BUCKET, S3_PATH, PASSPHRASE
+#
+#===============================================================================
+# Params console openshift
+APP_NAME=backup-wallet-issuer
+APP_GROUP=issuer
+
+# Params PC
+PVC_NAME=backups-port-e
+BACKUP_VOLUME_STORAGE_CLASS_NAME=efs-1000
+
+# Params base de données
+POSTGRES_DATABASE=aries-issuer
+POSTGRES_HOST=wallet
+POSTGRES_PORT=5432
+POSTGRES_USER=
+POSTGRES_PASSWORD=
+PGDUMP_EXTRA_OPTS=
+
+# Params build
+GITHUB_REPOSITORY_URI=https://github.com/CQEN-QDCE/postgres-backup-s3
+CONTEXT_SOURCE_DIR=
+GIT_REF=features/backup
+
+# Params S3 
+S3_ACCESS_KEY_ID=
+S3_SECRET_ACCESS_KEY=
+S3_BUCKET=backup-issuer
+S3_REGION=ca-central-1
+S3_PATH=
+S3_ENDPOINT=/endpoint?
+S3_S3V4=no
+
+# Params build
+GITHUB_REPOSITORY_URI=https://github.com/CQEN-QDCE/postgres-backup-s3
+GIT_REF=features/backup
+
+# Varia 
+SCHEDULE='0 4 * * *'
+PASSPHRASE=
+BACKUP_KEEP_DAYS=10
