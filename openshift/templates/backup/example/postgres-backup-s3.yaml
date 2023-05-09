@@ -1,0 +1,181 @@
+apiVersion: v1
+kind: Template
+metadata:
+  name: postgres-backup-s3
+  annotations:
+    description: 'Template for backup job adding files to S3 bucket'
+objects:
+######################################################################
+# Database PostgreSQL Backup CronJob
+######################################################################
+- kind: PersistentVolumeClaim
+  apiVersion: v1
+  metadata:
+    name: ${BACKUP_VOLUME_CLAIM_NAME}
+  spec:
+    storageClassName: ${BACKUP_VOLUME_STORAGE_CLASS_NAME}
+    accessModes:
+    - ReadWriteMany
+    resources:
+      requests:
+        storage: ${BACKUP_VOLUME_CAPACITY}
+  
+- kind: CronJob
+  apiVersion: batch/v1beta1
+  metadata:
+    name: cronjob-bd-backup-s3
+    annotations:
+      description: Defines how to deploy the application server
+      app.openshift.io/connects-to: >-
+        [{"apiVersion":"apps.openshift.io/v1","kind":"DeploymentConfig","name":"${POSTGRESQL_NAME}"}]
+  spec:
+    schedule: ${DATABASE_BACKUP_SCHEDULE}
+    concurrencyPolicy: Forbid
+    jobTemplate:
+      spec:
+        template:
+          spec:
+            volumes:
+              - name: database-backup
+                persistentVolumeClaim:
+                  claimName: ${BACKUP_VOLUME_CLAIM_NAME}
+            containers:
+              - name: database-backup
+                image: 'quay-quay-openshift-operators.apps.dev.openshift.cqen.ca/taiga/postgresaws'
+                command:
+                  - 'bash'
+                  - '-eo'
+                  - 'pipefail'
+                  - '-c'
+                  - > 
+                    trap "echo Backup failed; exit 0" ERR; 
+                    echo $(date);
+                    FILENAME=backup-${DATABASE_NAME}-`date +%Y-%m-%d_%H%M%S`Z.sql.gz;
+                    time (PGPASSWORD="$DATABASE_PASSWORD" /usr/bin/pg_dump --username=$DATABASE_USER --host=$DATABASE_HOST --port=$DATABASE_PORT --column-inserts --clean --create ${DATABASE_NAME} | gzip > /database-backup/$FILENAME);
+                    echo "";
+                    echo "Backup successful"; du -h /database-backup/$FILENAME; 
+                    echo "to restore the backup to the serviced host use: $ psql --username=$DATABASE_USER --password --host=$DATABASE_HOST --port=$DATABASE_PORT postgres < /database-backup/<backupfile> (unpacked)";
+                    echo "";
+                    echo "Backing up the file to S3 bucket";
+                    echo $(aws configure list);
+                    aws s3 cp /database-backup/$FILENAME s3://${AWS_S3_BUCKET_NAME}/$FILENAME;
+                env:
+                  - name: DATABASE_BACKUP_KEEP
+                    value: ${DATABASE_BACKUP_KEEP}
+                  - name: DATABASE_USER
+                    valueFrom:
+                      secretKeyRef:
+                        name: ${POSTGRESQL_NAME}
+                        key: database-user
+                  - name: DATABASE_PASSWORD
+                    valueFrom:
+                      secretKeyRef:
+                        name: ${POSTGRESQL_NAME}
+                        key: database-password
+                  - name: DATABASE_HOST
+                    valueFrom:
+                      secretKeyRef:
+                        name: ${POSTGRESQL_NAME}
+                        key: database-hostname
+                  - name: DATABASE_PORT
+                    valueFrom:
+                      secretKeyRef:
+                        name: ${POSTGRESQL_NAME}
+                        key: database-port
+                  - name: DATABASE_NAME
+                    valueFrom:
+                      secretKeyRef:
+                        name: ${POSTGRESQL_NAME}
+                        key: database-name
+                  - name: AWS_ACCESS_KEY_ID
+                    valueFrom:
+                      secretKeyRef:
+                        name: postgres-backup
+                        key: aws-access-key-id
+                  - name: AWS_ACCESS_KEY_SECRET
+                    valueFrom:
+                      secretKeyRef:
+                        name: postgres-backup
+                        key: aws-access-key-secret
+                  - name: AWS_DEFAULT_REGION
+                    value: ${AWS_DEFAULT_REGION}
+                volumeMounts:
+                  - name: database-backup
+                    mountPath: /database-backup
+            restartPolicy: Never
+
+######################################################################
+# Secrets
+######################################################################
+- kind: Secret
+  apiVersion: v1
+  metadata:
+    name: postgres-backup-s3
+    annotations:
+      template.openshift.io/expose-username: "{.data['database-user']}"
+      template.openshift.io/expose-password: "{.data['database-password']}"
+      template.openshift.io/expose-username: "{.data['aws-access-key-id']}"
+      template.openshift.io/expose-password: "{.data['aws-access-key-secret']}"
+  stringData:
+    database-user: "${DATABASE_USER}"
+    database-password: "${DATABASE_PASSWORD}"
+    aws-access-key-id: "${AWS_ACCESS_KEY_ID}"
+    aws-access-key-secret: "${AWS_ACCESS_KEY_SECRET}"
+              
+######################################################################
+# Parameters
+######################################################################
+parameters:
+- name: POSTGRESQL_NAME
+  displayName: PostgreSQL Database and Secrets Name
+  description: The name of the PostgreSQL Database and Secrets.
+  required: true
+  value: 'db'
+- name: DATABASE_BACKUP_KEEP
+  description: Number of backups to keep.
+  value: '7'
+- name: DATABASE_BACKUP_SCHEDULE
+  description: Cron-like schedule expression.
+  value: '0-55/5 * * * *'
+- name: DATABASE_USER
+  description: PostgreSQL user.
+  required: true
+- name: DATABASE_PASSWORD
+  description: PostgreSQL password.
+  required: true
+- name: DATABASE_HOST
+  description: Hostname of the PostgreSQL server (aka service name).
+  required: true
+- name: DATABASE_PORT
+  description: Port number of the PostgreSQL server (aka service port number).
+  required: true
+  value: '5432'
+- name: DATABASE_NAME
+  description: Name of the database to backup.
+  required: true
+- name: BACKUP_VOLUME_CLAIM_NAME
+  description: Name of the volume claim to be used as storage.
+  required: true
+  value: 'postgres-backup-s3'
+- name: BACKUP_VOLUME_STORAGE_CLASS_NAME
+  description: Name of the storage class.
+  required: true
+  value: 'ocs-storagecluster-cephfs'
+- name: AWS_ACCESS_KEY_ID
+  description: AWS access key id of the S3 bucket.
+  required: true
+- name: AWS_ACCESS_KEY_SECRET
+  description: AWS access key secret of the S3 bucket.
+  required: true
+- name: AWS_S3_BUCKET_NAME
+  description: Name of the AWS S3 bucket.
+  required: true
+  value: cqen-taiga-backups
+- name: BACKUP_VOLUME_CAPACITY
+  description: Backup volume available space.
+  required: true
+  value: "1Gi"
+- name: AWS_DEFAULT_REGION
+  description: AWS default region.
+  required: true
+  value: "ca-central-1"
