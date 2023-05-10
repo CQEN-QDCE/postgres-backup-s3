@@ -47,7 +47,7 @@ objects:
         kind: ImageStreamTag
         name: ${APP_NAME}:latest
     source:
-      # contextDir: ${CONTEXT_SOURCE_DIR}
+      contextDir: ${CONTEXT_SOURCE_DIR}
       git:
         uri: ${GITHUB_REPOSITORY_URI}
         ref: ${GIT_REF}
@@ -79,7 +79,7 @@ objects:
           name: ${APP_NAME}
       spec:
         containers:
-        - image: redis:latest
+        - image: ${APP_NAME}:latest
           imagePullPolicy: ""
           name: ${APP_NAME}
           resources: {}
