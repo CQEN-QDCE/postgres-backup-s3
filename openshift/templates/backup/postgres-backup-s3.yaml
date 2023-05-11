@@ -31,34 +31,6 @@ objects:
       app: ${APP_NAME}
       app.kubernetes.io/part-of: ${APP_NAME}
 
-- kind: BuildConfig
-  apiVersion: v1
-  metadata:
-    annotations:
-      app.openshift.io/vcs-uri: ${GITHUB_REPOSITORY_URI}
-      template.alpha.openshift.io/wait-for-ready: "true"
-    labels:
-      app: ${APP_NAME}
-      app.kubernetes.io/part-of: ${APP_NAME}
-    name: ${APP_NAME}
-  spec:
-    output:
-      to:
-        kind: ImageStreamTag
-        name: ${APP_NAME}:latest
-    source:
-      contextDir: ${CONTEXT_SOURCE_DIR}
-      git:
-        uri: ${GITHUB_REPOSITORY_URI}
-        ref: ${GIT_REF}
-      type: Git
-    strategy:
-      dockerStrategy:
-        dockerfilePath: Dockerfile
-      type: Docker
-    triggers:
-      - type: ConfigChange
-
 - kind: DeploymentConfig
   apiVersion: v1
   metadata:
@@ -69,8 +41,28 @@ objects:
       app: ${APP_NAME}
   spec:
     strategy:
-      type: Recreate
+      type: Rolling
+      rollingParams:
+        updatePeriodSeconds: 1 
+        intervalSeconds: 1
+        timeoutSeconds: 600
+        maxUnavailable: 25%
+        maxSurge: 25%
+      resources: {}
+      # activeDealineSeconds: 21600
+    triggers: 
+      - type: ConfigChange
+      - type: ImageChange
+        imageChangeParams:
+          automatic: true
+          containerNames:
+            - ${APP_NAME}
+          from:
+            kind: ImageStreamTag
+            name: "${APP_NAME}:latest" 
     replicas: 1
+    revisionHistoryLimit: 10
+    test: false
     selector:
       name: ${APP_NAME}
     template:
@@ -79,6 +71,13 @@ objects:
           name: ${APP_NAME}
       spec:
         containers:
+        - env: 
+          - name: POSTGRESQL_USER
+            value: ${POSTGRES_USER}
+          - name: POSTGRESQL_PASSWORD
+            value: ${POSTGRES_PASSWORD}
+          - name: POSTGRESQL_DATABASE
+            value: ${POSTGRES_DATABASE}
         - image: ${APP_NAME}:latest
           imagePullPolicy: ""
           name: ${APP_NAME}
