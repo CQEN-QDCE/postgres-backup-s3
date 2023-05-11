@@ -1,0 +1,1 @@
+oc process -f ./postgres-backup-s3-build.yaml --param-file=./postgres-backup-s3-build.params | oc apply -f -

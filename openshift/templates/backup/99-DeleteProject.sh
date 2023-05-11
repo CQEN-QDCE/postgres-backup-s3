@@ -1,0 +1,1 @@
+oc delete project postgres-backup-s3-test
