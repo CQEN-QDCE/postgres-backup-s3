@@ -71,14 +71,79 @@ objects:
           name: ${APP_NAME}
       spec:
         containers:
-        - env: 
-          - name: POSTGRESQL_USER
-            value: ${POSTGRES_USER}
-          - name: POSTGRESQL_PASSWORD
-            value: ${POSTGRES_PASSWORD}
+        - env:
           - name: POSTGRESQL_DATABASE
-            value: ${POSTGRES_DATABASE}
-        - image: ${APP_NAME}:latest
+            valueFrom:
+              secretKeyRef: 
+                name: ${APP_NAME}
+                key: postgres-database
+          - name: POSTGRES_HOST
+            valueFrom:
+              secretKeyRef: 
+                name: ${APP_NAME}
+                key: postgres-host
+          - name: POSTGRES_PORT
+            valueFrom:
+              secretKeyRef: 
+                name: ${APP_NAME}
+                key: postgres-port
+          - name: POSTGRESQL_USER
+            valueFrom:
+              secretKeyRef: 
+                name: ${APP_NAME}
+                key: postgres-user
+          - name: POSTGRESQL_PASSWORD
+            valueFrom:
+              secretKeyRef: 
+                name: ${APP_NAME}
+                key: postgres-password
+          - name: PGDUMP_EXTRA_OPTS
+            value: ${PGDUMP_EXTRA_OPTS}
+          - name: S3_ACCESS_KEY_ID
+            valueFrom:
+              secretKeyRef: 
+                name: ${APP_NAME}
+                key: s3-access-key-id
+          - name: S3_SECRET_ACCESS_KEY
+            valueFrom:
+              secretKeyRef: 
+                name: ${APP_NAME}
+                key: s3-secret-access-key
+          - name: S3_BUCKET
+            valueFrom:
+              secretKeyRef: 
+                name: ${APP_NAME}
+                key: s3-bucket
+          - name: S3_REGION
+            valueFrom:
+              secretKeyRef: 
+                name: ${APP_NAME}
+                key: s3-region
+          - name: S3_PATH
+            valueFrom:
+              secretKeyRef: 
+                name: ${APP_NAME}
+                key: s3-path
+          - name: S3_ENDPOINT
+            valueFrom:
+              secretKeyRef: 
+                name: ${APP_NAME}
+                key: s3-endpoint
+          - name: S3_S3V4
+            valueFrom:
+              secretKeyRef: 
+                name: ${APP_NAME}
+                key: s3-s3v4
+          - name: SCHEDULE
+            value: ${SCHEDULE}
+          - name: PASSPHRASE
+            valueFrom:
+              secretKeyRef: 
+                name: ${APP_NAME}
+                key: passphrase
+          - name: BACKUP_KEEP_DAYS
+            value: ${BACKUP_KEEP_DAYS}
+          image: ${APP_NAME}:latest
           imagePullPolicy: ""
           name: ${APP_NAME}
           resources: {}
