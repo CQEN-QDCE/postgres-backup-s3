@@ -2,6 +2,7 @@
 FROM alpine:3.16
 # ARG TARGETARCH
 
+ENV TARGETARCH 'amd64'
 ADD src/install.sh install.sh
 RUN sh install.sh && rm install.sh
 
