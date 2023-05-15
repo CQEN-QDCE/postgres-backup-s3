@@ -183,11 +183,11 @@ objects:
       name: ${APP_NAME}
       role: controller
   stringData:
-    postgres-database:      ${POSTGRES_DATABASE}
+    postgres-database:      ${POSTGRESQL_DATABASE}
     postgres-host:          ${POSTGRES_HOST}
     postgres-port:          ${POSTGRES_PORT}
-    postgres-user:          ${POSTGRES_USER}
-    postgres-password:      ${POSTGRES_PASSWORD}
+    postgres-user:          ${POSTGRESQL_USER}
+    postgres-password:      ${POSTGRESQL_PASSWORD}
     s3-access-key-id:       ${S3_ACCESS_KEY_ID} 
     s3-secret-access-key:   ${S3_SECRET_ACCESS_KEY} 
     s3-bucket:              ${S3_BUCKET}           
@@ -212,7 +212,7 @@ parameters:
   required: true
 
 # Params database
-- name: POSTGRES_DATABASE
+- name: POSTGRESQL_DATABASE
   displayName: PostgreSQL Database and Secrets Name
   description: The name of the PostgreSQL Database and Secrets.
   required: true
@@ -224,10 +224,10 @@ parameters:
   description: Port number of the PostgreSQL server (aka service port number).
   required: true
   value: '5432'
-- name: POSTGRES_USER
+- name: POSTGRESQL_USER
   description: PostgreSQL user.
   required: true
-- name: POSTGRES_PASSWORD
+- name: POSTGRESQL_PASSWORD
   description: PostgreSQL password.
   required: true
 - name: PGDUMP_EXTRA_OPTS

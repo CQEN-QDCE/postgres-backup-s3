@@ -3,8 +3,8 @@ if [ -z "$S3_BUCKET" ]; then
   exit 1
 fi
 
-if [ -z "$POSTGRES_DATABASE" ]; then
-  echo "You need to set the POSTGRES_DATABASE environment variable."
+if [ -z "$POSTGRESQL_DATABASE" ]; then
+  echo "You need to set the POSTGRESQL_DATABASE environment variable."
   exit 1
 fi
 
@@ -19,13 +19,13 @@ if [ -z "$POSTGRES_HOST" ]; then
   fi
 fi
 
-if [ -z "$POSTGRES_USER" ]; then
-  echo "You need to set the POSTGRES_USER environment variable."
+if [ -z "$POSTGRESQL_USER" ]; then
+  echo "You need to set the POSTGRESQL_USER environment variable."
   exit 1
 fi
 
-if [ -z "$POSTGRES_PASSWORD" ]; then
-  echo "You need to set the POSTGRES_PASSWORD environment variable."
+if [ -z "$POSTGRESQL_PASSWORD" ]; then
+  echo "You need to set the POSTGRESQL_PASSWORD environment variable."
   exit 1
 fi
 
@@ -43,4 +43,4 @@ if [ -n "$S3_SECRET_ACCESS_KEY" ]; then
   export AWS_SECRET_ACCESS_KEY=$S3_SECRET_ACCESS_KEY
 fi
 export AWS_DEFAULT_REGION=$S3_REGION
-export PGPASSWORD=$POSTGRES_PASSWORD
+export PGPASSWORD=$POSTGRESQL_PASSWORD
