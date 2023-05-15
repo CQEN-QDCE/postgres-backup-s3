@@ -3,10 +3,11 @@
 
 services:
   postgres:
-    image: postgres:14
+    image: registry.redhat.io/rhel9/postgresql-13:1-124
     environment:
-      POSTGRES_USER: user
-      POSTGRES_PASSWORD: password
+      POSTGRESQL_DATABASE: aries-issuer
+      POSTGRESQL_USER: user
+      POSTGRESQL_PASSWORD: password
 
   backup:
     build:
@@ -22,7 +23,7 @@ services:
       S3_SECRET_ACCESS_KEY:
       S3_BUCKET:
       S3_PREFIX: backup
-      POSTGRES_HOST: postgres
-      POSTGRES_DATABASE: postgres
-      POSTGRES_USER: user
-      POSTGRES_PASSWORD: password
+      POSTGRESQL_HOST: postgres-backup-s3-postgres-1
+      POSTGRESQL_DATABASE: aries-issuer
+      POSTGRESQL_USER: user
+      POSTGRESQL_PASSWORD: password
